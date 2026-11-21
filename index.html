@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      (function () {
+        try {
+          var desc = Object.getOwnPropertyDescriptor(window, 'fetch');
+          if (desc && desc.get && !desc.set && desc.configurable) {
+            Object.defineProperty(window, 'fetch', {
+              configurable: true,
+              enumerable: Boolean(desc.enumerable),
+              get: desc.get,
+              set: function () {},
+            });
+          }
+        } catch (_e) {}
+
+        window.addEventListener(
+          'error',
+          function (event) {
+            var src = (event && event.filename) || '';
+            var msg = (event && event.message) || '';
+            var stack = (event && event.error && event.error.stack) || '';
+            var isExtensionError =
+              src.indexOf('chrome-extension://') === 0 ||
+              src.indexOf('moz-extension://') === 0 ||
+              stack.indexOf('chrome-extension://') !== -1 ||
+              stack.indexOf('moz-extension://') !== -1;
+            if (isExtensionError || msg.indexOf('Cannot set property fetch of #<Window>') !== -1) {
+              event.preventDefault();
+              event.stopImmediatePropagation();
+            }
+          },
+          true
+        );
+      })();
+    </script>
+    <title>Famral Navigator – College Predictor &amp; Cutoff Explorer</title>
+    <meta
+      name="description"
+      content="Compare historical JoSAA, JEE Advanced (IITs), CSAB, REAP, MHT CET, WBJEE, and KCET opening and closing ranks, explore colleges, and build your preference list."
+    />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://navigator.famral.com/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="en_IN" />
+    <meta property="og:site_name" content="Famral Navigator" />
+    <meta property="og:title" content="Famral Navigator – College Predictor &amp; Cutoff Explorer" />
+    <meta
+      property="og:description"
+      content="Compare historical JoSAA, JEE Advanced (IITs), CSAB, REAP, MHT CET, WBJEE, and KCET opening and closing ranks, explore colleges, and build your preference list."
+    />
+    <meta property="og:url" content="https://navigator.famral.com/" />
+    <meta property="og:image" content="https://navigator.famral.com/pwa-512x512.png" />
+    <meta
+      property="og:image:alt"
+      content="Famral Navigator — College Admission Intelligence for JoSAA, JEE Advanced, CSAB, REAP, MHT CET, WBJEE &amp; KCET"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Famral Navigator – College Predictor &amp; Cutoff Explorer" />
+    <meta
+      name="twitter:description"
+      content="Historical rank comparisons, cutoff trends, college comparisons, and counselling choice list planning across JoSAA, JEE Advanced (IITs), CSAB, REAP, MHT CET, WBJEE, and KCET."
+    />
+    <meta name="twitter:image" content="https://navigator.famral.com/pwa-512x512.png" />
+    <meta name="theme-color" content="#0B1F3A" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Navigator" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400..600&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <script type="application/ld+json" data-famral-seo="true">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Famral Navigator",
+        "url": "https://navigator.famral.com",
+        "applicationCategory": "EducationalApplication",
+        "operatingSystem": "All",
+        "description": "Compare historical JoSAA, JEE Advanced (IITs), CSAB, REAP, MHT CET, WBJEE, and KCET opening and closing ranks, explore colleges, and build your preference list.",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "INR"
+        }
+      }
+    </script>
+  </head>
+  <body class="bg-[#F8FAFC] text-[#0F172A] antialiased selection:bg-[#1D4ED8]/15 selection:text-[#0B1F3A]">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,6 @@
+{
+  "name": "Famral Navigator",
+  "description": "Find Your College. Choose Your Future. From your entrance-exam rank to your counselling preference list, make every admission decision with greater clarity.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

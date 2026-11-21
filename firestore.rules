@@ -1,0 +1,776 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Global Security Primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(uid) {
+      return isVerified() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return isVerified() && (
+        request.auth.token.email == 'connectwithman@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isNonEmptyString(val, maxLen) {
+      return val is string && val.size() >= 1 && val.size() <= maxLen;
+    }
+
+    function isOptionalString(data, key, maxLen) {
+      return !(key in data) || (data[key] is string && data[key].size() <= maxLen);
+    }
+
+    function isBoundedStringList(val, maxItems) {
+      return val is list && val.size() <= maxItems && (val.size() == 0 || val[0] is string);
+    }
+
+    // 3. Entity Validation Blueprints
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll(['uid', 'email', 'displayName', 'consentAccepted', 'language', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly([
+          'uid', 'email', 'displayName', 'consentAccepted', 'consentAt', 'language',
+          'homeState', 'gender', 'category', 'isPwd', 'examCode', 'systemCode',
+          'academicYear', 'crlRank', 'categoryRank', 'preferredBranches', 'preferredStates',
+          'createdAt', 'updatedAt'
+        ])
+        && data.uid == userId
+        && isNonEmptyString(data.email, 200)
+        && isNonEmptyString(data.displayName, 120)
+        && data.consentAccepted is bool
+        && isOptionalString(data, 'consentAt', 64)
+        && (data.language == 'en' || data.language == 'hi')
+        && isOptionalString(data, 'homeState', 80)
+        && (!('gender' in data) || data.gender == 'Gender-Neutral' || data.gender == 'Female-only')
+        && isOptionalString(data, 'category', 40)
+        && (!('isPwd' in data) || data.isPwd is bool)
+        && isOptionalString(data, 'examCode', 40)
+        && isOptionalString(data, 'systemCode', 40)
+        && (!('academicYear' in data) || (data.academicYear is int && data.academicYear >= 2015 && data.academicYear <= 2035))
+        && (!('crlRank' in data) || data.crlRank == null || (data.crlRank is int && data.crlRank >= 1 && data.crlRank <= 5000000))
+        && (!('categoryRank' in data) || data.categoryRank == null || (data.categoryRank is int && data.categoryRank >= 1 && data.categoryRank <= 5000000))
+        && (!('preferredBranches' in data) || isBoundedStringList(data.preferredBranches, 25))
+        && (!('preferredStates' in data) || isBoundedStringList(data.preferredStates, 40));
+    }
+
+    function isValidAdminRole(data, userId) {
+      return data.keys().hasAll(['uid', 'email', 'role', 'createdAt'])
+        && data.keys().hasOnly(['uid', 'email', 'role', 'grantedBy', 'createdAt'])
+        && data.uid == userId
+        && isNonEmptyString(data.email, 200)
+        && (data.role == 'admin' || data.role == 'data_reviewer')
+        && isOptionalString(data, 'grantedBy', 128);
+    }
+
+    function isValidPlacementMap(p) {
+      return p is map
+        && p.keys().hasAll(['medianPackage', 'placementSummary', 'sourceNote', 'isDemo'])
+        && p.keys().hasOnly(['medianPackage', 'averagePackage', 'highestPackage', 'placementSummary', 'sourceNote', 'isDemo'])
+        && isNonEmptyString(p.medianPackage, 300)
+        && (!('averagePackage' in p) || p.averagePackage == null || (p.averagePackage is string && p.averagePackage.size() <= 300))
+        && (!('highestPackage' in p) || p.highestPackage == null || (p.highestPackage is string && p.highestPackage.size() <= 300))
+        && isNonEmptyString(p.placementSummary, 1000)
+        && isNonEmptyString(p.sourceNote, 400)
+        && p.isDemo is bool;
+    }
+
+    function isValidGalleryList(val) {
+      return val is list
+        && val.size() <= 12
+        && (val.size() == 0 || (
+          val[0] is map
+          && val[0].keys().hasAll(['url', 'caption'])
+          && val[0].keys().hasOnly(['url', 'caption'])
+          && isNonEmptyString(val[0].url, 400)
+          && isNonEmptyString(val[0].caption, 200)
+        ));
+    }
+
+    function isValidInstitution(data) {
+      return data.keys().hasAll(['slug', 'name', 'shortName', 'type', 'state', 'city', 'sourceName', 'academicYear', 'isDemo', 'status', 'verificationStatus', 'verifiedAt', 'updatedAt'])
+        && data.keys().hasOnly([
+          'slug', 'name', 'shortName', 'type', 'ownership', 'ownershipDetails',
+          'logoMonogram', 'logoAccent', 'state', 'city', 'address', 'nearestTransit',
+          'establishedYear', 'websiteUrl', 'contactEmail', 'contactPhone',
+          'overview', 'description', 'nirfRanking', 'otherRankings', 'accreditation',
+          'coursesOffered', 'entranceExams', 'eligibilitySummary', 'admissionProcess',
+          'feeRangeNote', 'estimatedTotalFee', 'placements', 'campusFacilities',
+          'studentFacilities', 'galleryImages', 'systems', 'imageUrl', 'sourceName',
+          'academicYear', 'isDemo', 'status', 'verificationStatus', 'verifiedAt', 'updatedAt'
+        ])
+        && isNonEmptyString(data.slug, 100) && data.slug.matches('^[a-z0-9-]+$')
+        && isNonEmptyString(data.name, 200)
+        && isNonEmptyString(data.shortName, 80)
+        && (data.type in ['NIT', 'IIIT', 'GFTI', 'IIT', 'State University', 'Central University'])
+        && (!('ownership' in data) || (data.ownership in ['Government', 'Government Aided', 'Public-Private (PPP)', 'Private']))
+        && isOptionalString(data, 'ownershipDetails', 300)
+        && isOptionalString(data, 'logoMonogram', 12)
+        && isOptionalString(data, 'logoAccent', 24)
+        && isNonEmptyString(data.state, 80)
+        && isNonEmptyString(data.city, 80)
+        && isOptionalString(data, 'address', 400)
+        && isOptionalString(data, 'nearestTransit', 300)
+        && (!('establishedYear' in data) || data.establishedYear == null || (data.establishedYear is int && data.establishedYear >= 1800 && data.establishedYear <= 2035))
+        && isOptionalString(data, 'websiteUrl', 300)
+        && isOptionalString(data, 'contactEmail', 200)
+        && isOptionalString(data, 'contactPhone', 120)
+        && isOptionalString(data, 'overview', 2000)
+        && isOptionalString(data, 'description', 3000)
+        && isOptionalString(data, 'nirfRanking', 300)
+        && (!('otherRankings' in data) || isBoundedStringList(data.otherRankings, 15))
+        && isOptionalString(data, 'accreditation', 300)
+        && (!('coursesOffered' in data) || isBoundedStringList(data.coursesOffered, 20))
+        && (!('entranceExams' in data) || isBoundedStringList(data.entranceExams, 15))
+        && isOptionalString(data, 'eligibilitySummary', 800)
+        && isOptionalString(data, 'admissionProcess', 1500)
+        && isOptionalString(data, 'feeRangeNote', 300)
+        && isOptionalString(data, 'estimatedTotalFee', 400)
+        && (!('placements' in data) || isValidPlacementMap(data.placements))
+        && (!('campusFacilities' in data) || isBoundedStringList(data.campusFacilities, 25))
+        && (!('studentFacilities' in data) || isBoundedStringList(data.studentFacilities, 25))
+        && (!('galleryImages' in data) || isValidGalleryList(data.galleryImages))
+        && (!('systems' in data) || isBoundedStringList(data.systems, 15))
+        && isOptionalString(data, 'imageUrl', 400)
+        && isNonEmptyString(data.sourceName, 200)
+        && data.academicYear is int && data.academicYear >= 2015 && data.academicYear <= 2035
+        && data.isDemo is bool
+        && (data.status in ['published', 'draft', 'archived'])
+        && (data.verificationStatus in ['verified', 'unverified', 'outdated'])
+        && isNonEmptyString(data.verifiedAt, 64);
+    }
+
+    function isValidProgramme(data) {
+      return data.keys().hasAll(['institutionId', 'code', 'name', 'degree', 'durationYears', 'branchGroup', 'isDemo', 'verifiedAt', 'updatedAt'])
+        && data.keys().hasOnly(['institutionId', 'code', 'name', 'degree', 'durationYears', 'branchGroup', 'seatMatrixNote', 'isDemo', 'verifiedAt', 'updatedAt'])
+        && isValidId(data.institutionId)
+        && isNonEmptyString(data.code, 40)
+        && isNonEmptyString(data.name, 200)
+        && isNonEmptyString(data.degree, 80)
+        && data.durationYears is int && data.durationYears >= 1 && data.durationYears <= 7
+        && isNonEmptyString(data.branchGroup, 80)
+        && isOptionalString(data, 'seatMatrixNote', 200)
+        && data.isDemo is bool
+        && isNonEmptyString(data.verifiedAt, 64);
+    }
+
+    function isValidCutoff(data) {
+      return data.keys().hasAll([
+          'systemCode', 'examCode', 'academicYear', 'roundNumber', 'roundLabel',
+          'institutionId', 'institutionSlug', 'institutionName', 'institutionType', 'state',
+          'programmeId', 'programmeName', 'branchGroup', 'quota', 'seatCategory',
+          'seatPool', 'rankType', 'openingRank', 'closingRank', 'sourceName',
+          'isDemo', 'status', 'verificationStatus', 'verifiedAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'systemCode', 'examCode', 'academicYear', 'roundNumber', 'roundLabel',
+          'institutionId', 'institutionSlug', 'institutionName', 'institutionType', 'state',
+          'programmeId', 'programmeName', 'branchGroup', 'quota', 'seatCategory',
+          'seatPool', 'rankType', 'openingRank', 'closingRank', 'sourceName',
+          'sourceUrl', 'isDemo', 'status', 'verificationStatus', 'importBatchId',
+          'verifiedAt', 'updatedAt'
+        ])
+        && isNonEmptyString(data.systemCode, 40)
+        && isNonEmptyString(data.examCode, 40)
+        && data.academicYear is int && data.academicYear >= 2015 && data.academicYear <= 2035
+        && data.roundNumber is int && data.roundNumber >= 1 && data.roundNumber <= 12
+        && isNonEmptyString(data.roundLabel, 60)
+        && isValidId(data.institutionId)
+        && isNonEmptyString(data.institutionSlug, 100)
+        && isNonEmptyString(data.institutionName, 200)
+        && isNonEmptyString(data.institutionType, 40)
+        && isNonEmptyString(data.state, 80)
+        && isValidId(data.programmeId)
+        && isNonEmptyString(data.programmeName, 200)
+        && isNonEmptyString(data.branchGroup, 80)
+        && isNonEmptyString(data.quota, 20)
+        && isNonEmptyString(data.seatCategory, 40)
+        && isNonEmptyString(data.seatPool, 40)
+        && (data.rankType == 'CRL' || data.rankType == 'CATEGORY_RANK')
+        && data.openingRank is int && data.openingRank >= 1
+        && data.closingRank is int && data.closingRank >= data.openingRank
+        && isNonEmptyString(data.sourceName, 200)
+        && isOptionalString(data, 'sourceUrl', 300)
+        && data.isDemo is bool
+        && (data.status in ['published', 'draft', 'archived'])
+        && (data.verificationStatus in ['verified', 'unverified', 'outdated'])
+        && isOptionalString(data, 'importBatchId', 128)
+        && isNonEmptyString(data.verifiedAt, 64);
+    }
+
+    function isValidImportLog(data) {
+      return data.keys().hasAll(['batchId', 'importedByUid', 'importedByEmail', 'fileName', 'systemCode', 'academicYear', 'totalRows', 'insertedCount', 'archivedCount', 'errorCount', 'status', 'createdAt'])
+        && data.keys().hasOnly(['batchId', 'importedByUid', 'importedByEmail', 'fileName', 'systemCode', 'academicYear', 'totalRows', 'insertedCount', 'archivedCount', 'errorCount', 'status', 'createdAt'])
+        && isValidId(data.batchId)
+        && isValidId(data.importedByUid)
+        && isNonEmptyString(data.importedByEmail, 200)
+        && isNonEmptyString(data.fileName, 200)
+        && isNonEmptyString(data.systemCode, 40)
+        && data.academicYear is int
+        && data.totalRows is int && data.totalRows >= 0
+        && data.insertedCount is int && data.insertedCount >= 0
+        && data.archivedCount is int && data.archivedCount >= 0
+        && data.errorCount is int && data.errorCount >= 0
+        && (data.status == 'completed' || data.status == 'rolled_back');
+    }
+
+    function isValidSchedule(data) {
+      return data.keys().hasAll(['systemCode', 'academicYear', 'title', 'phase', 'startDate', 'endDate', 'sourceName', 'isOutdated', 'isDemo', 'verifiedAt', 'updatedAt'])
+        && data.keys().hasOnly(['systemCode', 'academicYear', 'title', 'phase', 'startDate', 'endDate', 'description', 'sourceName', 'sourceUrl', 'isOutdated', 'isDemo', 'verifiedAt', 'updatedAt'])
+        && isNonEmptyString(data.systemCode, 40)
+        && data.academicYear is int
+        && isNonEmptyString(data.title, 200)
+        && isNonEmptyString(data.phase, 80)
+        && isNonEmptyString(data.startDate, 40)
+        && isNonEmptyString(data.endDate, 40)
+        && isOptionalString(data, 'description', 1000)
+        && isNonEmptyString(data.sourceName, 200)
+        && isOptionalString(data, 'sourceUrl', 300)
+        && data.isOutdated is bool
+        && data.isDemo is bool
+        && isNonEmptyString(data.verifiedAt, 64);
+    }
+
+    function isValidNotice(data) {
+      return data.keys().hasAll(['systemCode', 'academicYear', 'title', 'summary', 'publishedDate', 'sourceName', 'isOutdated', 'isDemo', 'verifiedAt', 'updatedAt'])
+        && data.keys().hasOnly(['systemCode', 'academicYear', 'title', 'summary', 'publishedDate', 'sourceName', 'sourceUrl', 'isOutdated', 'isDemo', 'verifiedAt', 'updatedAt'])
+        && isNonEmptyString(data.systemCode, 40)
+        && data.academicYear is int
+        && isNonEmptyString(data.title, 240)
+        && isNonEmptyString(data.summary, 1500)
+        && isNonEmptyString(data.publishedDate, 40)
+        && isNonEmptyString(data.sourceName, 200)
+        && isOptionalString(data, 'sourceUrl', 300)
+        && data.isOutdated is bool
+        && data.isDemo is bool
+        && isNonEmptyString(data.verifiedAt, 64);
+    }
+
+    function isValidContentItem(data) {
+      return data.keys().hasAll(['kind', 'systemCode', 'slug', 'title', 'summary', 'body', 'sourceName', 'isDemo', 'verifiedAt', 'updatedAt'])
+        && data.keys().hasOnly(['kind', 'systemCode', 'slug', 'title', 'summary', 'body', 'category', 'sourceName', 'sourceUrl', 'isDemo', 'verifiedAt', 'updatedAt'])
+        && (data.kind in ['guide', 'checklist', 'glossary'])
+        && isNonEmptyString(data.systemCode, 40)
+        && isNonEmptyString(data.slug, 120)
+        && isNonEmptyString(data.title, 200)
+        && isNonEmptyString(data.summary, 600)
+        && isNonEmptyString(data.body, 6000)
+        && isOptionalString(data, 'category', 80)
+        && isNonEmptyString(data.sourceName, 200)
+        && isOptionalString(data, 'sourceUrl', 300)
+        && data.isDemo is bool
+        && isNonEmptyString(data.verifiedAt, 64);
+    }
+
+    function isValidSavedCollege(data) {
+      return data.keys().hasAll(['userId', 'institutionId', 'institutionSlug', 'institutionName', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['userId', 'institutionId', 'institutionSlug', 'institutionName', 'programmeId', 'programmeName', 'notes', 'createdAt', 'updatedAt'])
+        && isValidId(data.userId)
+        && isValidId(data.institutionId)
+        && isNonEmptyString(data.institutionSlug, 100)
+        && isNonEmptyString(data.institutionName, 200)
+        && isOptionalString(data, 'programmeId', 128)
+        && isOptionalString(data, 'programmeName', 200)
+        && isOptionalString(data, 'notes', 1000);
+    }
+
+    function isValidComparison(data) {
+      return data.keys().hasAll(['userId', 'title', 'institutionIds', 'weights', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['userId', 'title', 'institutionIds', 'weights', 'createdAt', 'updatedAt'])
+        && isValidId(data.userId)
+        && isNonEmptyString(data.title, 160)
+        && isBoundedStringList(data.institutionIds, 4)
+        && data.weights is map;
+    }
+
+    function isValidChoiceList(data) {
+      return data.keys().hasAll(['userId', 'title', 'systemCode', 'academicYear', 'items', 'versions', 'shareEnabled', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['userId', 'title', 'systemCode', 'academicYear', 'items', 'versions', 'shareToken', 'shareEnabled', 'createdAt', 'updatedAt'])
+        && isValidId(data.userId)
+        && isNonEmptyString(data.title, 160)
+        && isNonEmptyString(data.systemCode, 40)
+        && data.academicYear is int && data.academicYear >= 2015 && data.academicYear <= 2035
+        && data.items is list && data.items.size() <= 150 && (data.items.size() == 0 || data.items[0] is map)
+        && data.versions is list && data.versions.size() <= 15 && (data.versions.size() == 0 || data.versions[0] is map)
+        && isOptionalString(data, 'shareToken', 128)
+        && data.shareEnabled is bool;
+    }
+
+    function isValidSharedList(data, shareToken) {
+      return data.keys().hasAll(['shareToken', 'listId', 'ownerId', 'title', 'systemCode', 'academicYear', 'items', 'includesDemoData', 'updatedAt'])
+        && data.keys().hasOnly(['shareToken', 'listId', 'ownerId', 'title', 'systemCode', 'academicYear', 'items', 'includesDemoData', 'updatedAt'])
+        && data.shareToken == shareToken
+        && shareToken.size() >= 16 && shareToken.size() <= 128
+        && isValidId(data.listId)
+        && isValidId(data.ownerId)
+        && isNonEmptyString(data.title, 160)
+        && isNonEmptyString(data.systemCode, 40)
+        && data.academicYear is int
+        && data.items is list && data.items.size() <= 150 && (data.items.size() == 0 || data.items[0] is map)
+        && data.includesDemoData is bool;
+    }
+
+    function isValidSavedPrediction(data) {
+      return data.keys().hasAll(['userId', 'systemCode', 'academicYear', 'roundNumber', 'rank', 'rankType', 'category', 'gender', 'homeState', 'isPwd', 'withinCount', 'nearCount', 'beyondCount', 'isDemo', 'createdAt'])
+        && data.keys().hasOnly(['userId', 'systemCode', 'academicYear', 'roundNumber', 'rank', 'rankType', 'category', 'gender', 'homeState', 'isPwd', 'withinCount', 'nearCount', 'beyondCount', 'isDemo', 'createdAt'])
+        && isValidId(data.userId)
+        && isNonEmptyString(data.systemCode, 40)
+        && data.academicYear is int
+        && data.roundNumber is int
+        && data.rank is int && data.rank >= 1
+        && (data.rankType == 'CRL' || data.rankType == 'CATEGORY_RANK')
+        && isNonEmptyString(data.category, 40)
+        && isNonEmptyString(data.gender, 40)
+        && isNonEmptyString(data.homeState, 80)
+        && data.isPwd is bool
+        && data.withinCount is int && data.withinCount >= 0
+        && data.nearCount is int && data.nearCount >= 0
+        && data.beyondCount is int && data.beyondCount >= 0
+        && data.isDemo is bool;
+    }
+
+    function isValidUserTracking(data, userId) {
+      return data.keys().hasAll(['uid', 'followedSystems', 'savedScheduleIds', 'checkedDocIds', 'journeySteps', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'followedSystems', 'savedScheduleIds', 'checkedDocIds', 'journeySteps', 'updatedAt'])
+        && data.uid == userId
+        && isBoundedStringList(data.followedSystems, 20)
+        && isBoundedStringList(data.savedScheduleIds, 100)
+        && isBoundedStringList(data.checkedDocIds, 100)
+        && isBoundedStringList(data.journeySteps, 30);
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll(['userId', 'systemCode', 'title', 'body', 'isRead', 'createdAt'])
+        && data.keys().hasOnly(['userId', 'systemCode', 'title', 'body', 'isRead', 'createdAt'])
+        && isValidId(data.userId)
+        && isNonEmptyString(data.systemCode, 40)
+        && isNonEmptyString(data.title, 200)
+        && isNonEmptyString(data.body, 1000)
+        && data.isRead is bool;
+    }
+
+    function isValidDataReport(data) {
+      return data.keys().hasAll(['reporterUid', 'entityType', 'entityId', 'entityLabel', 'issueType', 'details', 'status', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['reporterUid', 'reporterEmail', 'entityType', 'entityId', 'entityLabel', 'issueType', 'details', 'status', 'adminNote', 'createdAt', 'updatedAt'])
+        && isValidId(data.reporterUid)
+        && isOptionalString(data, 'reporterEmail', 200)
+        && (data.entityType in ['cutoff', 'institution', 'schedule', 'notice', 'guide'])
+        && isNonEmptyString(data.entityId, 160)
+        && isNonEmptyString(data.entityLabel, 240)
+        && isNonEmptyString(data.issueType, 80)
+        && data.details is string && data.details.size() >= 5 && data.details.size() <= 1500
+        && (data.status in ['open', 'reviewed', 'resolved', 'dismissed'])
+        && isOptionalString(data, 'adminNote', 1000);
+    }
+
+    function isValidAuditLog(data) {
+      return data.keys().hasAll(['actorUid', 'actorEmail', 'action', 'entityType', 'entityId', 'summary', 'createdAt'])
+        && data.keys().hasOnly(['actorUid', 'actorEmail', 'action', 'entityType', 'entityId', 'summary', 'createdAt'])
+        && data.actorUid == request.auth.uid
+        && isNonEmptyString(data.actorEmail, 200)
+        && isNonEmptyString(data.action, 80)
+        && isNonEmptyString(data.entityType, 80)
+        && isNonEmptyString(data.entityId, 160)
+        && isNonEmptyString(data.summary, 500);
+    }
+
+    function isValidUsageMetric(data) {
+      return data.keys().hasAll(['metricType', 'systemCode', 'dateKey', 'count', 'updatedAt'])
+        && data.keys().hasOnly(['metricType', 'systemCode', 'dateKey', 'count', 'updatedAt'])
+        && (data.metricType in ['predictor_run', 'cutoff_search', 'college_view'])
+        && isNonEmptyString(data.systemCode, 40)
+        && isNonEmptyString(data.dateKey, 20)
+        && data.count is int && data.count >= 1;
+    }
+
+    // 4. Collection Rules
+
+    // Private student profile (PII strictly isolated)
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isValidId(userId) && isOwner(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(userId) && isValidUserProfile(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() || (
+            isOwner(userId) &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'displayName', 'language', 'homeState', 'gender', 'category', 'isPwd',
+              'examCode', 'systemCode', 'academicYear', 'crlRank', 'categoryRank',
+              'preferredBranches', 'preferredStates', 'consentAccepted', 'consentAt', 'updatedAt'
+            ])
+          )
+        );
+      allow delete: if isValidId(userId) && (isOwner(userId) || isAdmin());
+    }
+
+    // Admin roles
+    match /admins/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isValidId(userId) && isAdmin()
+        && isValidAdminRole(incoming(), userId)
+        && incoming().createdAt == request.time;
+      allow update: if isValidId(userId) && isAdmin()
+        && isValidAdminRole(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().diff(existing()).affectedKeys().hasOnly(['role', 'email', 'grantedBy']);
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+
+    // Public catalog: Institutions
+    match /institutions/{institutionId} {
+      allow get: if isValidId(institutionId) && (existing().status == 'published' || isAdmin());
+      allow list: if resource.data.status == 'published' || isAdmin();
+      allow create: if isValidId(institutionId) && isAdmin()
+        && isValidInstitution(incoming())
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(institutionId) && isAdmin()
+        && isValidInstitution(incoming())
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'slug', 'name', 'shortName', 'type', 'ownership', 'ownershipDetails',
+          'logoMonogram', 'logoAccent', 'state', 'city', 'address', 'nearestTransit',
+          'establishedYear', 'websiteUrl', 'contactEmail', 'contactPhone',
+          'overview', 'description', 'nirfRanking', 'otherRankings', 'accreditation',
+          'coursesOffered', 'entranceExams', 'eligibilitySummary', 'admissionProcess',
+          'feeRangeNote', 'estimatedTotalFee', 'placements', 'campusFacilities',
+          'studentFacilities', 'galleryImages', 'systems', 'imageUrl', 'sourceName',
+          'academicYear', 'isDemo', 'status', 'verificationStatus', 'verifiedAt', 'updatedAt'
+        ]);
+      allow delete: if isValidId(institutionId) && isAdmin();
+    }
+
+    // Public catalog: Programmes
+    match /programmes/{programmeId} {
+      allow get: if isValidId(programmeId);
+      allow list: if resource.data.durationYears >= 1 || isAdmin();
+      allow create: if isValidId(programmeId) && isAdmin()
+        && isValidProgramme(incoming())
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(programmeId) && isAdmin()
+        && isValidProgramme(incoming())
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'institutionId', 'code', 'name', 'degree', 'durationYears',
+          'branchGroup', 'seatMatrixNote', 'isDemo', 'verifiedAt', 'updatedAt'
+        ]);
+      allow delete: if isValidId(programmeId) && isAdmin();
+    }
+
+    // Public catalog: Versioned Cutoffs
+    match /cutoffs/{cutoffId} {
+      allow get: if isValidId(cutoffId) && (existing().status == 'published' || isAdmin());
+      allow list: if resource.data.status == 'published' || isAdmin();
+      allow create: if isValidId(cutoffId) && isAdmin()
+        && isValidCutoff(incoming())
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(cutoffId) && isAdmin()
+        && isValidCutoff(incoming())
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'roundLabel', 'openingRank', 'closingRank', 'sourceName', 'sourceUrl',
+          'isDemo', 'status', 'verificationStatus', 'importBatchId', 'verifiedAt', 'updatedAt'
+        ]);
+      allow delete: if isValidId(cutoffId) && isAdmin();
+    }
+
+    // Admin CSV import logs
+    match /importLogs/{logId} {
+      allow get: if isValidId(logId) && isAdmin();
+      allow list: if isAdmin();
+      allow create: if isValidId(logId) && isAdmin()
+        && isValidImportLog(incoming())
+        && incoming().importedByUid == request.auth.uid
+        && incoming().createdAt == request.time;
+      allow update: if isValidId(logId) && isAdmin()
+        && isValidImportLog(incoming())
+        && incoming().importedByUid == existing().importedByUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().batchId == existing().batchId
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status']);
+      allow delete: if false;
+    }
+
+    // Public counselling schedules
+    match /schedules/{scheduleId} {
+      allow get: if isValidId(scheduleId);
+      allow list: if resource.data.academicYear >= 2015 || isAdmin();
+      allow create: if isValidId(scheduleId) && isAdmin()
+        && isValidSchedule(incoming())
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(scheduleId) && isAdmin()
+        && isValidSchedule(incoming())
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'title', 'phase', 'startDate', 'endDate', 'description',
+          'sourceName', 'sourceUrl', 'isOutdated', 'isDemo', 'verifiedAt', 'updatedAt'
+        ]);
+      allow delete: if isValidId(scheduleId) && isAdmin();
+    }
+
+    // Public counselling notices
+    match /notices/{noticeId} {
+      allow get: if isValidId(noticeId);
+      allow list: if resource.data.academicYear >= 2015 || isAdmin();
+      allow create: if isValidId(noticeId) && isAdmin()
+        && isValidNotice(incoming())
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(noticeId) && isAdmin()
+        && isValidNotice(incoming())
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'title', 'summary', 'publishedDate', 'sourceName', 'sourceUrl',
+          'isOutdated', 'isDemo', 'verifiedAt', 'updatedAt'
+        ]);
+      allow delete: if isValidId(noticeId) && isAdmin();
+    }
+
+    // Public admin-managed guides, checklists & glossary
+    match /contentItems/{itemId} {
+      allow get: if isValidId(itemId);
+      allow list: if resource.data.kind in ['guide', 'checklist', 'glossary'] || isAdmin();
+      allow create: if isValidId(itemId) && isAdmin()
+        && isValidContentItem(incoming())
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(itemId) && isAdmin()
+        && isValidContentItem(incoming())
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'title', 'summary', 'body', 'category', 'sourceName', 'sourceUrl',
+          'isDemo', 'verifiedAt', 'updatedAt'
+        ]);
+      allow delete: if isValidId(itemId) && isAdmin();
+    }
+
+    // Student saved colleges (strictly owner-scoped)
+    match /savedColleges/{savedId} {
+      allow get: if isValidId(savedId) && (isOwner(existing().userId) || isAdmin());
+      allow list: if isVerified() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isValidId(savedId) && isVerified()
+        && isValidSavedCollege(incoming())
+        && incoming().userId == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(savedId) && isValidSavedCollege(incoming())
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() || (
+            isOwner(existing().userId) &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['notes', 'programmeId', 'programmeName', 'updatedAt'])
+          )
+        );
+      allow delete: if isValidId(savedId) && (isOwner(existing().userId) || isAdmin());
+    }
+
+    // Student comparisons (strictly owner-scoped)
+    match /comparisons/{comparisonId} {
+      allow get: if isValidId(comparisonId) && (isOwner(existing().userId) || isAdmin());
+      allow list: if isVerified() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isValidId(comparisonId) && isVerified()
+        && isValidComparison(incoming())
+        && incoming().userId == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(comparisonId) && isValidComparison(incoming())
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() || (
+            isOwner(existing().userId) &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['title', 'institutionIds', 'weights', 'updatedAt'])
+          )
+        );
+      allow delete: if isValidId(comparisonId) && (isOwner(existing().userId) || isAdmin());
+    }
+
+    // Student choice lists (strictly owner-scoped)
+    match /choiceLists/{listId} {
+      allow get: if isValidId(listId) && (isOwner(existing().userId) || isAdmin());
+      allow list: if isVerified() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isValidId(listId) && isVerified()
+        && isValidChoiceList(incoming())
+        && incoming().userId == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(listId) && isValidChoiceList(incoming())
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() || (
+            isOwner(existing().userId) &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'title', 'items', 'versions', 'shareToken', 'shareEnabled', 'updatedAt'
+            ])
+          )
+        );
+      allow delete: if isValidId(listId) && (isOwner(existing().userId) || isAdmin());
+    }
+
+    // Revocable public read-only choice list share snapshots (NO list enumeration!)
+    match /sharedLists/{shareToken} {
+      allow get: if isValidId(shareToken) && shareToken.size() >= 16;
+      allow list: if false;
+      allow create: if isValidId(shareToken) && isVerified()
+        && isValidSharedList(incoming(), shareToken)
+        && incoming().ownerId == request.auth.uid
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(shareToken) && isValidSharedList(incoming(), shareToken)
+        && incoming().ownerId == existing().ownerId
+        && incoming().shareToken == existing().shareToken
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() || (
+            isOwner(existing().ownerId) &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['title', 'items', 'includesDemoData', 'updatedAt'])
+          )
+        );
+      allow delete: if isValidId(shareToken) && (isOwner(existing().ownerId) || isAdmin());
+    }
+
+    // Student saved predictions (strictly owner-scoped)
+    match /savedPredictions/{predictionId} {
+      allow get: if isValidId(predictionId) && (isOwner(existing().userId) || isAdmin());
+      allow list: if isVerified() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isValidId(predictionId) && isVerified()
+        && isValidSavedPrediction(incoming())
+        && incoming().userId == request.auth.uid
+        && incoming().createdAt == request.time;
+      allow update: if false;
+      allow delete: if isValidId(predictionId) && (isOwner(existing().userId) || isAdmin());
+    }
+
+    // Student counselling journey & document checklist tracking
+    match /userTracking/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isValidId(userId) && isOwner(userId)
+        && isValidUserTracking(incoming(), userId)
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(userId) && isValidUserTracking(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() || (
+            isOwner(userId) &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'followedSystems', 'savedScheduleIds', 'checkedDocIds', 'journeySteps', 'updatedAt'
+            ])
+          )
+        );
+      allow delete: if isValidId(userId) && (isOwner(userId) || isAdmin());
+    }
+
+    // Student notifications
+    match /notifications/{notificationId} {
+      allow get: if isValidId(notificationId) && (isOwner(existing().userId) || isAdmin());
+      allow list: if isVerified() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isValidId(notificationId) && isVerified()
+        && isValidNotification(incoming())
+        && (incoming().userId == request.auth.uid || isAdmin())
+        && incoming().createdAt == request.time;
+      allow update: if isValidId(notificationId) && isValidNotification(incoming())
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && (
+          isAdmin() || (
+            isOwner(existing().userId) &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['isRead'])
+          )
+        );
+      allow delete: if isValidId(notificationId) && (isOwner(existing().userId) || isAdmin());
+    }
+
+    // Data error report queue
+    match /dataReports/{reportId} {
+      allow get: if isValidId(reportId) && (isOwner(existing().reporterUid) || isAdmin());
+      allow list: if isVerified() && (resource.data.reporterUid == request.auth.uid || isAdmin());
+      allow create: if isValidId(reportId) && isVerified()
+        && isValidDataReport(incoming())
+        && incoming().reporterUid == request.auth.uid
+        && incoming().status == 'open'
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(reportId) && isAdmin()
+        && isValidDataReport(incoming())
+        && incoming().reporterUid == existing().reporterUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'adminNote', 'updatedAt']);
+      allow delete: if isValidId(reportId) && isAdmin();
+    }
+
+    // Admin audit logs (append-only for admins)
+    match /auditLogs/{logId} {
+      allow get: if isValidId(logId) && isAdmin();
+      allow list: if isAdmin();
+      allow create: if isValidId(logId) && isAdmin()
+        && isValidAuditLog(incoming())
+        && incoming().createdAt == request.time;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // Privacy-conscious aggregate usage analytics (no personal rank data)
+    match /usageMetrics/{metricId} {
+      allow get: if isValidId(metricId) && isAdmin();
+      allow list: if isAdmin();
+      allow create: if isValidId(metricId) && isVerified()
+        && isValidUsageMetric(incoming())
+        && incoming().count == 1
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(metricId) && isVerified()
+        && isValidUsageMetric(incoming())
+        && incoming().metricType == existing().metricType
+        && incoming().systemCode == existing().systemCode
+        && incoming().dateKey == existing().dateKey
+        && incoming().count == existing().count + 1
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['count', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    // Connection test probe (harmless read for SDK connectivity check)
+    match /test/connection {
+      allow get: if true;
+      allow write: if false;
+    }
+  }
+}

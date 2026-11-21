@@ -1,0 +1,6 @@
+system_code,exam_code,academic_year,round_number,round_label,institution_slug,programme_code,quota,seat_category,seat_pool,rank_type,opening_rank,closing_rank,source_name,source_url,is_demo,verified_at
+josaa,jee-main,2025,6,Round 6,nit-trichy,CSE,OS,OPEN,Gender-Neutral,CRL,1150,1480,Demo JoSAA Sample Dataset,https://josaa.nic.in,true,2025-07-20
+josaa,jee-main,2025,6,Round 6,nit-trichy,CSE,HS,OPEN,Gender-Neutral,CRL,2450,4150,Demo JoSAA Sample Dataset,https://josaa.nic.in,true,2025-07-20
+josaa,jee-main,2025,6,Round 6,nit-trichy,CSE,OS,OBC-NCL,Gender-Neutral,CATEGORY_RANK,380,540,Demo JoSAA Sample Dataset,https://josaa.nic.in,true,2025-07-20
+josaa,jee-main,2025,6,Round 6,nit-trichy,CSE,OS,OPEN,Female-only,CRL,1800,2650,Demo JoSAA Sample Dataset,https://josaa.nic.in,true,2025-07-20
+josaa,jee-main,2025,6,Round 6,iiit-allahabad,IT,AI,OPEN,Gender-Neutral,CRL,3900,5600,Demo JoSAA Sample Dataset,https://josaa.nic.in,true,2025-07-20

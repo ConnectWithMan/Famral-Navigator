@@ -1,0 +1,410 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Private student account, consent metadata, and exam profile.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "email": { "type": "string", "format": "email", "maxLength": 200 },
+        "displayName": { "type": "string", "maxLength": 120 },
+        "consentAccepted": { "type": "boolean" },
+        "consentAt": { "type": "string", "maxLength": 64 },
+        "language": { "type": "string", "enum": ["en", "hi"] },
+        "homeState": { "type": "string", "maxLength": 80 },
+        "gender": { "type": "string", "enum": ["Gender-Neutral", "Female-only"] },
+        "category": { "type": "string", "maxLength": 40 },
+        "isPwd": { "type": "boolean" },
+        "examCode": { "type": "string", "maxLength": 40 },
+        "systemCode": { "type": "string", "maxLength": 40 },
+        "academicYear": { "type": "integer" },
+        "crlRank": { "type": "integer" },
+        "categoryRank": { "type": "integer" },
+        "preferredBranches": { "type": "array" },
+        "preferredStates": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "displayName", "consentAccepted", "language", "createdAt", "updatedAt"]
+    },
+    "AdminRole": {
+      "title": "AdminRole",
+      "description": "Role-based access grant for Famral Navigator administrators.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "email": { "type": "string", "format": "email", "maxLength": 200 },
+        "role": { "type": "string", "enum": ["admin", "data_reviewer"] },
+        "grantedBy": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role", "createdAt"]
+    },
+    "Institution": {
+      "title": "Institution",
+      "description": "Participating undergraduate engineering/university institution with full structured profile.",
+      "type": "object",
+      "properties": {
+        "slug": { "type": "string", "minLength": 2, "maxLength": 100, "pattern": "^[a-z0-9-]+$" },
+        "name": { "type": "string", "minLength": 2, "maxLength": 200 },
+        "shortName": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "type": { "type": "string", "enum": ["NIT", "IIIT", "GFTI", "IIT", "State University", "Central University"] },
+        "ownership": { "type": "string", "enum": ["Government", "Government Aided", "Public-Private (PPP)", "Private"] },
+        "ownershipDetails": { "type": "string", "maxLength": 300 },
+        "logoMonogram": { "type": "string", "maxLength": 12 },
+        "logoAccent": { "type": "string", "maxLength": 24 },
+        "state": { "type": "string", "maxLength": 80 },
+        "city": { "type": "string", "maxLength": 80 },
+        "address": { "type": "string", "maxLength": 400 },
+        "nearestTransit": { "type": "string", "maxLength": 300 },
+        "establishedYear": { "type": "integer" },
+        "websiteUrl": { "type": "string", "maxLength": 300 },
+        "contactEmail": { "type": "string", "maxLength": 200 },
+        "contactPhone": { "type": "string", "maxLength": 120 },
+        "overview": { "type": "string", "maxLength": 2000 },
+        "description": { "type": "string", "maxLength": 3000 },
+        "nirfRanking": { "type": "string", "maxLength": 300 },
+        "otherRankings": { "type": "array" },
+        "accreditation": { "type": "string", "maxLength": 300 },
+        "coursesOffered": { "type": "array" },
+        "entranceExams": { "type": "array" },
+        "eligibilitySummary": { "type": "string", "maxLength": 800 },
+        "admissionProcess": { "type": "string", "maxLength": 1500 },
+        "feeRangeNote": { "type": "string", "maxLength": 300 },
+        "estimatedTotalFee": { "type": "string", "maxLength": 400 },
+        "placements": { "type": "object" },
+        "campusFacilities": { "type": "array" },
+        "studentFacilities": { "type": "array" },
+        "galleryImages": { "type": "array" },
+        "systems": { "type": "array" },
+        "imageUrl": { "type": "string", "maxLength": 400 },
+        "sourceName": { "type": "string", "maxLength": 200 },
+        "academicYear": { "type": "integer" },
+        "isDemo": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["published", "draft", "archived"] },
+        "verificationStatus": { "type": "string", "enum": ["verified", "unverified", "outdated"] },
+        "verifiedAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["slug", "name", "shortName", "type", "state", "city", "sourceName", "academicYear", "isDemo", "status", "verificationStatus", "verifiedAt", "updatedAt"]
+    },
+    "Programme": {
+      "title": "Programme",
+      "description": "Academic degree programme/branch offered at an institution.",
+      "type": "object",
+      "properties": {
+        "institutionId": { "type": "string", "maxLength": 128 },
+        "code": { "type": "string", "maxLength": 40 },
+        "name": { "type": "string", "maxLength": 200 },
+        "degree": { "type": "string", "maxLength": 80 },
+        "durationYears": { "type": "integer" },
+        "branchGroup": { "type": "string", "maxLength": 80 },
+        "seatMatrixNote": { "type": "string", "maxLength": 200 },
+        "isDemo": { "type": "boolean" },
+        "verifiedAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["institutionId", "code", "name", "degree", "durationYears", "branchGroup", "isDemo", "verifiedAt", "updatedAt"]
+    },
+    "Cutoff": {
+      "title": "Cutoff",
+      "description": "Versioned historical opening and closing rank record with provenance.",
+      "type": "object",
+      "properties": {
+        "systemCode": { "type": "string", "maxLength": 40 },
+        "examCode": { "type": "string", "maxLength": 40 },
+        "academicYear": { "type": "integer" },
+        "roundNumber": { "type": "integer" },
+        "roundLabel": { "type": "string", "maxLength": 60 },
+        "institutionId": { "type": "string", "maxLength": 128 },
+        "institutionSlug": { "type": "string", "maxLength": 100 },
+        "institutionName": { "type": "string", "maxLength": 200 },
+        "institutionType": { "type": "string", "maxLength": 40 },
+        "state": { "type": "string", "maxLength": 80 },
+        "programmeId": { "type": "string", "maxLength": 128 },
+        "programmeName": { "type": "string", "maxLength": 200 },
+        "branchGroup": { "type": "string", "maxLength": 80 },
+        "quota": { "type": "string", "maxLength": 20 },
+        "seatCategory": { "type": "string", "maxLength": 40 },
+        "seatPool": { "type": "string", "maxLength": 40 },
+        "rankType": { "type": "string", "enum": ["CRL", "CATEGORY_RANK"] },
+        "openingRank": { "type": "integer" },
+        "closingRank": { "type": "integer" },
+        "sourceName": { "type": "string", "maxLength": 200 },
+        "sourceUrl": { "type": "string", "maxLength": 300 },
+        "isDemo": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["published", "draft", "archived"] },
+        "verificationStatus": { "type": "string", "enum": ["verified", "unverified", "outdated"] },
+        "importBatchId": { "type": "string", "maxLength": 128 },
+        "verifiedAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["systemCode", "examCode", "academicYear", "roundNumber", "roundLabel", "institutionId", "institutionSlug", "institutionName", "institutionType", "state", "programmeId", "programmeName", "branchGroup", "quota", "seatCategory", "seatPool", "rankType", "openingRank", "closingRank", "sourceName", "isDemo", "status", "verificationStatus", "verifiedAt", "updatedAt"]
+    },
+    "ImportLog": {
+      "title": "ImportLog",
+      "description": "Admin CSV import audit log with batch rollback metadata.",
+      "type": "object",
+      "properties": {
+        "batchId": { "type": "string", "maxLength": 128 },
+        "importedByUid": { "type": "string", "maxLength": 128 },
+        "importedByEmail": { "type": "string", "maxLength": 200 },
+        "fileName": { "type": "string", "maxLength": 200 },
+        "systemCode": { "type": "string", "maxLength": 40 },
+        "academicYear": { "type": "integer" },
+        "totalRows": { "type": "integer" },
+        "insertedCount": { "type": "integer" },
+        "archivedCount": { "type": "integer" },
+        "errorCount": { "type": "integer" },
+        "status": { "type": "string", "enum": ["completed", "rolled_back"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["batchId", "importedByUid", "importedByEmail", "fileName", "systemCode", "academicYear", "totalRows", "insertedCount", "archivedCount", "errorCount", "status", "createdAt"]
+    },
+    "ScheduleItem": {
+      "title": "ScheduleItem",
+      "description": "Counselling timeline date entry.",
+      "type": "object",
+      "properties": {
+        "systemCode": { "type": "string", "maxLength": 40 },
+        "academicYear": { "type": "integer" },
+        "title": { "type": "string", "maxLength": 200 },
+        "phase": { "type": "string", "maxLength": 80 },
+        "startDate": { "type": "string", "maxLength": 40 },
+        "endDate": { "type": "string", "maxLength": 40 },
+        "description": { "type": "string", "maxLength": 1000 },
+        "sourceName": { "type": "string", "maxLength": 200 },
+        "sourceUrl": { "type": "string", "maxLength": 300 },
+        "isOutdated": { "type": "boolean" },
+        "isDemo": { "type": "boolean" },
+        "verifiedAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["systemCode", "academicYear", "title", "phase", "startDate", "endDate", "sourceName", "isOutdated", "isDemo", "verifiedAt", "updatedAt"]
+    },
+    "NoticeItem": {
+      "title": "NoticeItem",
+      "description": "Counselling announcement or notice.",
+      "type": "object",
+      "properties": {
+        "systemCode": { "type": "string", "maxLength": 40 },
+        "academicYear": { "type": "integer" },
+        "title": { "type": "string", "maxLength": 240 },
+        "summary": { "type": "string", "maxLength": 1500 },
+        "publishedDate": { "type": "string", "maxLength": 40 },
+        "sourceName": { "type": "string", "maxLength": 200 },
+        "sourceUrl": { "type": "string", "maxLength": 300 },
+        "isOutdated": { "type": "boolean" },
+        "isDemo": { "type": "boolean" },
+        "verifiedAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["systemCode", "academicYear", "title", "summary", "publishedDate", "sourceName", "isOutdated", "isDemo", "verifiedAt", "updatedAt"]
+    },
+    "ContentItem": {
+      "title": "ContentItem",
+      "description": "Admin-managed process guides, checklists, and admissions glossary terms.",
+      "type": "object",
+      "properties": {
+        "kind": { "type": "string", "enum": ["guide", "checklist", "glossary"] },
+        "systemCode": { "type": "string", "maxLength": 40 },
+        "slug": { "type": "string", "maxLength": 120 },
+        "title": { "type": "string", "maxLength": 200 },
+        "summary": { "type": "string", "maxLength": 600 },
+        "body": { "type": "string", "maxLength": 6000 },
+        "category": { "type": "string", "maxLength": 80 },
+        "sourceName": { "type": "string", "maxLength": 200 },
+        "sourceUrl": { "type": "string", "maxLength": 300 },
+        "isDemo": { "type": "boolean" },
+        "verifiedAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["kind", "systemCode", "slug", "title", "summary", "body", "sourceName", "isDemo", "verifiedAt", "updatedAt"]
+    },
+    "SavedCollege": {
+      "title": "SavedCollege",
+      "description": "Student saved institution or institution+programme with personal notes.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "institutionId": { "type": "string", "maxLength": 128 },
+        "institutionSlug": { "type": "string", "maxLength": 100 },
+        "institutionName": { "type": "string", "maxLength": 200 },
+        "programmeId": { "type": "string", "maxLength": 128 },
+        "programmeName": { "type": "string", "maxLength": 200 },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "institutionId", "institutionSlug", "institutionName", "createdAt", "updatedAt"]
+    },
+    "Comparison": {
+      "title": "Comparison",
+      "description": "Saved 2-4 college comparison with student personal priority weights.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 160 },
+        "institutionIds": { "type": "array" },
+        "weights": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "title", "institutionIds", "weights", "createdAt", "updatedAt"]
+    },
+    "ChoiceList": {
+      "title": "ChoiceList",
+      "description": "Student-ordered counselling preference list with version history.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "systemCode": { "type": "string", "maxLength": 40 },
+        "academicYear": { "type": "integer" },
+        "items": { "type": "array" },
+        "versions": { "type": "array" },
+        "shareToken": { "type": "string", "maxLength": 128 },
+        "shareEnabled": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "title", "systemCode", "academicYear", "items", "versions", "shareEnabled", "createdAt", "updatedAt"]
+    },
+    "SharedChoiceList": {
+      "title": "SharedChoiceList",
+      "description": "Revocable read-only snapshot of a student choice list accessed by unguessable token.",
+      "type": "object",
+      "properties": {
+        "shareToken": { "type": "string", "minLength": 16, "maxLength": 128 },
+        "listId": { "type": "string", "maxLength": 128 },
+        "ownerId": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 160 },
+        "systemCode": { "type": "string", "maxLength": 40 },
+        "academicYear": { "type": "integer" },
+        "items": { "type": "array" },
+        "includesDemoData": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["shareToken", "listId", "ownerId", "title", "systemCode", "academicYear", "items", "includesDemoData", "updatedAt"]
+    },
+    "SavedPrediction": {
+      "title": "SavedPrediction",
+      "description": "Saved historical cutoff comparison run for a student.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "systemCode": { "type": "string", "maxLength": 40 },
+        "academicYear": { "type": "integer" },
+        "roundNumber": { "type": "integer" },
+        "rank": { "type": "integer" },
+        "rankType": { "type": "string", "enum": ["CRL", "CATEGORY_RANK"] },
+        "category": { "type": "string", "maxLength": 40 },
+        "gender": { "type": "string", "maxLength": 40 },
+        "homeState": { "type": "string", "maxLength": 80 },
+        "isPwd": { "type": "boolean" },
+        "withinCount": { "type": "integer" },
+        "nearCount": { "type": "integer" },
+        "beyondCount": { "type": "integer" },
+        "isDemo": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "systemCode", "academicYear", "roundNumber", "rank", "rankType", "category", "gender", "homeState", "isPwd", "withinCount", "nearCount", "beyondCount", "isDemo", "createdAt"]
+    },
+    "UserTracking": {
+      "title": "UserTracking",
+      "description": "Student followed counselling systems, saved dates, document checklist ticks, and journey progress.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "followedSystems": { "type": "array" },
+        "savedScheduleIds": { "type": "array" },
+        "checkedDocIds": { "type": "array" },
+        "journeySteps": { "type": "array" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "followedSystems", "savedScheduleIds", "checkedDocIds", "journeySteps", "updatedAt"]
+    },
+    "NotificationItem": {
+      "title": "NotificationItem",
+      "description": "In-app counselling and data-change alert for a student.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "systemCode": { "type": "string", "maxLength": 40 },
+        "title": { "type": "string", "maxLength": 200 },
+        "body": { "type": "string", "maxLength": 1000 },
+        "isRead": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "systemCode", "title", "body", "isRead", "createdAt"]
+    },
+    "DataReport": {
+      "title": "DataReport",
+      "description": "User-submitted error report for admin data quality review queue.",
+      "type": "object",
+      "properties": {
+        "reporterUid": { "type": "string", "maxLength": 128 },
+        "reporterEmail": { "type": "string", "maxLength": 200 },
+        "entityType": { "type": "string", "enum": ["cutoff", "institution", "schedule", "notice", "guide"] },
+        "entityId": { "type": "string", "maxLength": 160 },
+        "entityLabel": { "type": "string", "maxLength": 240 },
+        "issueType": { "type": "string", "maxLength": 80 },
+        "details": { "type": "string", "minLength": 5, "maxLength": 1500 },
+        "status": { "type": "string", "enum": ["open", "reviewed", "resolved", "dismissed"] },
+        "adminNote": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["reporterUid", "entityType", "entityId", "entityLabel", "issueType", "details", "status", "createdAt", "updatedAt"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Admin mutation audit trail.",
+      "type": "object",
+      "properties": {
+        "actorUid": { "type": "string", "maxLength": 128 },
+        "actorEmail": { "type": "string", "maxLength": 200 },
+        "action": { "type": "string", "maxLength": 80 },
+        "entityType": { "type": "string", "maxLength": 80 },
+        "entityId": { "type": "string", "maxLength": 160 },
+        "summary": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["actorUid", "actorEmail", "action", "entityType", "entityId", "summary", "createdAt"]
+    },
+    "UsageMetric": {
+      "title": "UsageMetric",
+      "description": "Privacy-conscious aggregate usage counter without personal rank data.",
+      "type": "object",
+      "properties": {
+        "metricType": { "type": "string", "enum": ["predictor_run", "cutoff_search", "college_view"] },
+        "systemCode": { "type": "string", "maxLength": 40 },
+        "dateKey": { "type": "string", "maxLength": 20 },
+        "count": { "type": "integer" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["metricType", "systemCode", "dateKey", "count", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": { "schema": { "$ref": "#/entities/UserProfile" }, "description": "Private student account & profile" },
+    "/admins/{userId}": { "schema": { "$ref": "#/entities/AdminRole" }, "description": "Admin RBAC records" },
+    "/institutions/{institutionId}": { "schema": { "$ref": "#/entities/Institution" }, "description": "Published institutions catalog" },
+    "/programmes/{programmeId}": { "schema": { "$ref": "#/entities/Programme" }, "description": "Institution programmes" },
+    "/cutoffs/{cutoffId}": { "schema": { "$ref": "#/entities/Cutoff" }, "description": "Versioned historical cutoffs" },
+    "/importLogs/{logId}": { "schema": { "$ref": "#/entities/ImportLog" }, "description": "Admin CSV import logs" },
+    "/schedules/{scheduleId}": { "schema": { "$ref": "#/entities/ScheduleItem" }, "description": "Counselling dates timeline" },
+    "/notices/{noticeId}": { "schema": { "$ref": "#/entities/NoticeItem" }, "description": "Counselling notices" },
+    "/contentItems/{itemId}": { "schema": { "$ref": "#/entities/ContentItem" }, "description": "Guides, checklists, glossary" },
+    "/savedColleges/{savedId}": { "schema": { "$ref": "#/entities/SavedCollege" }, "description": "Student saved colleges" },
+    "/comparisons/{comparisonId}": { "schema": { "$ref": "#/entities/Comparison" }, "description": "Student saved comparisons" },
+    "/choiceLists/{listId}": { "schema": { "$ref": "#/entities/ChoiceList" }, "description": "Student preference lists" },
+    "/sharedLists/{shareToken}": { "schema": { "$ref": "#/entities/SharedChoiceList" }, "description": "Public read-only shared list snapshots by unguessable token" },
+    "/savedPredictions/{predictionId}": { "schema": { "$ref": "#/entities/SavedPrediction" }, "description": "Student saved predictions" },
+    "/userTracking/{userId}": { "schema": { "$ref": "#/entities/UserTracking" }, "description": "Student journey & checklists" },
+    "/notifications/{notificationId}": { "schema": { "$ref": "#/entities/NotificationItem" }, "description": "Student notifications" },
+    "/dataReports/{reportId}": { "schema": { "$ref": "#/entities/DataReport" }, "description": "Data error reports queue" },
+    "/auditLogs/{logId}": { "schema": { "$ref": "#/entities/AuditLog" }, "description": "Admin audit logs" },
+    "/usageMetrics/{metricId}": { "schema": { "$ref": "#/entities/UsageMetric" }, "description": "Aggregate non-PII usage analytics" }
+  }
+}
